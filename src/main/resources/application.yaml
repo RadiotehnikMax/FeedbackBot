@@ -1,0 +1,19 @@
+bot:
+    username: <YOUR_BOT_USERNAME>
+    token: <YOUR_BOT_TOKEN>
+    admin: <ADMIN_ID>
+
+spring:
+  datasource:
+    url: jdbc:postgresql://
+    username: <USER_NAME>
+    password: <USER_PASSWORD>
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+server:
+  port: 8080
