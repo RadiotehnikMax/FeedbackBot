@@ -1,13 +1,13 @@
 bot:
-    username: <YOUR_BOT_USERNAME>
-    token: <YOUR_BOT_TOKEN>
-    admin: <ADMIN_ID>
+    username: 
+    token: 
+    admin: 
 
 spring:
   datasource:
-    url: jdbc:postgresql://
-    username: <USER_NAME>
-    password: <USER_PASSWORD>
+    url: 
+    username: 
+    password: 
   jpa:
     hibernate:
       ddl-auto: update

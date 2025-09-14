@@ -3,7 +3,6 @@ package max.kyshnierov.feedbackBot.Bot.service.impl;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
-import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -19,6 +18,8 @@ import lombok.extern.log4j.Log4j;
 import max.kyshnierov.feedbackBot.Bot.service.AdminService;
 import max.kyshnierov.feedbackBot.Bot.service.MainService;
 import max.kyshnierov.feedbackBot.Bot.util.Keyboards;
+import max.kyshnierov.feedbackBot.Bot.util.Role;
+import max.kyshnierov.feedbackBot.Bot.util.Workstation;
 
 @Service
 @Log4j
@@ -31,26 +32,14 @@ public class MainServiceImpl implements MainService {
     private TelegramBot bot;
     @Autowired
     private Keyboards keyboards;
+
     @Autowired
     private UserRepository repository;
     @Autowired
     private FeedbackRepository feedbackRepository;
+
     @Autowired
     private AdminService admin;
-
-    private List<String> roles = List.of(
-            "Механік",
-            "Електрик",
-            "Менеджер"
-        );
-    private List<String> workstation = List.of(
-            "Філія на Хмельницькій",
-            "Філія на Київській",
-            "Філія на Хрещатику",
-            "Філія на Віденській",
-            "Філія на Володимира Великого",
-            "Філія на Шевченка"
-        );
 
     private Long chatId;
 
@@ -89,8 +78,7 @@ public class MainServiceImpl implements MainService {
                         } catch (IOException e) {
                             bot.sendMessage(chatId, "При експорті файлу сталась помилка!\nВибачте за незручності");
                             log.error("Export CSV error: " + e.getMessage());
-                        }
-                        
+                        }  
                     }
                     break;
                 default:
@@ -110,50 +98,49 @@ public class MainServiceImpl implements MainService {
     }
 
     private boolean isRoleMessage(String message) {
-        
-        if (roles.contains(message) || workstation.contains(message)) { 
-            return true; 
+
+        if (Role.isEquals(message) || Workstation.isEquals(message)) {
+            return true;
         }
         return false;
     }
 
     private void roleHandler(String message) {
-        switch (message) {
-            case "Механік":
-            case "Електрик":
-            case "Менеджер":
-                if (repository.findByChatId(chatId) == null) {
-                    repository.save(Users.builder()
-                        .chatId(chatId)
-                        .role((message.equals("Механік") ? "Механік" : message.equals("Електрик") ? "Електрик" : "Менеджер"))
-                        .workstation("") // тимчасово
-                        .build());
-                }
-                bot.sendMessageWithKeyboard(chatId, "Виберіть вашу філію:", keyboards.getWorkStationMenu());
-                break;
-            case "Філія на Хмельницькій":
-            case "Філія на Київській":
-            case "Філія на Хрещатику":
-            case "Філія на Віденській":
-            case "Філія на Володимира Великого":
-            case "Філія на Шевченка":
-                if (repository.findByChatId(chatId) != null) {
-                    Users user = repository.findByChatId(chatId);
-                    user.setWorkstation((message.equals("Філія на Хмельницькій") ? "Філія на Хмельницькій" :
-                                            message.equals("Філія на Київській") ? "Філія на Київській" :
-                                            message.equals("Філія на Хрещатику") ? "Філія на Хрещатику" :
-                                            message.equals("Філія на Віденській") ? "Філія на Віденській" :
-                                            message.equals("Філія на Володимира Великого") ? "Філія на Володимира Великого" : "Філія на Шевченка"
-                                            ));
-                    repository.save(user);
-                }
+        // Спроба визначити роль через enum Role
+        try {
+            Role role = Role.fromDisplayName(message);
+            if (repository.findByChatId(chatId) == null) {
+                repository.save(Users.builder()
+                    .chatId(chatId)
+                    .role(role.getDisplayName()) // записуємо displayName
+                    .workstation("") // тимчасово
+                    .build());
+            }
+            bot.sendMessageWithKeyboard(chatId, "Виберіть вашу філію:", keyboards.getWorkStationMenu());
+            return;
+        } catch (IllegalArgumentException ignored) {
+            // message не є роллю, пробуємо як філію
+        }
+
+        // Спроба визначити філію через enum Workstation
+        try {
+            Workstation ws = Workstation.fromDisplayName(message);
+            Users user = repository.findByChatId(chatId);
+            if (user != null) {
+                user.setWorkstation(ws.getDisplayName()); // записуємо displayName
+                repository.save(user);
                 bot.sendMessage(chatId, "Дякуємо! Ви успішно зареєстровані.");
                 bot.sendMessage(chatId, "Тепер ви можете надсилати свої скарги, побажання або пропозиції анонімно.");
-                break;
-            default:
-                bot.sendMessage(chatId, "Невідома команда. Спробуйте /help для списку доступних команд.");
-                break;
+            } else {
+                bot.sendMessage(chatId, "Спочатку оберіть роль.");
+            }
+            return;
+        } catch (IllegalArgumentException ignored) {
+            // message не є філією
         }
+
+        // Якщо не роль і не філія
+        bot.sendMessage(chatId, "Невідома команда. Спробуйте /help для списку доступних команд.");
     }
 
     private void feedbackHandler(String message) {
